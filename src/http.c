@@ -10,6 +10,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "date.h"
+
 int startup(uint16_t port);
 void process_request(int client);
 int get_line(int sock, uint8_t *buf, size_t size);
@@ -102,19 +104,28 @@ void process_request(int client)
 
 	printf("%s: %s\n", method, url);
 
-	const char *response =
+	const char *res_tmpl =
 		"HTTP/1.1 200 OK\r\n"
-		"Date: Thu, 20 May 2004 21:12:58 GMT\r\n"
+		"Date: %s\r\n"
 		"Connection: close\r\n"
 		"Server: Pokoy\r\n"
 		"Accept-Ranges: bytes\r\n"
 		"Content-Type: application/json\r\n"
-		"Content-Length: 12\r\n"
-		"Last-Modified: Thu, 20 May 2004 21:12:58 GMT\r\n"
+		"Content-Length: %d\r\n"
+		"Last-Modified: %s\r\n"
 		"\r\n"
-		"{ \"yes\": 1 }";
+		"%s";
 
-	send(client, response, strlen(response), 0);
+	char date[POKOY_DATE_LEN];
+	rfc2822date(date);
+
+	const char *body = "{ \"yes\": 1 }";
+	uint16_t body_len = strlen(body);
+
+	char *res = calloc(1000, sizeof(char));
+	sprintf(res, res_tmpl, date, body_len, date, body);
+
+	send(client, res, strlen(res), 0);
 
 	close(client);
 }
