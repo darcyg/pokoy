@@ -102,6 +102,20 @@ void process_request(int client)
 
 	printf("%s: %s\n", method, url);
 
+	const char *response =
+		"HTTP/1.1 200 OK\r\n"
+		"Date: Thu, 20 May 2004 21:12:58 GMT\r\n"
+		"Connection: close\r\n"
+		"Server: Pokoy\r\n"
+		"Accept-Ranges: bytes\r\n"
+		"Content-Type: application/json\r\n"
+		"Content-Length: 12\r\n"
+		"Last-Modified: Thu, 20 May 2004 21:12:58 GMT\r\n"
+		"\r\n"
+		"{ \"yes\": 1 }";
+
+	send(client, response, strlen(response), 0);
+
 	close(client);
 }
 
