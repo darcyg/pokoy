@@ -10,38 +10,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "http.h"
 #include "date.h"
 
-int startup(uint16_t port);
-void process_request(int client);
 int get_line(int sock, uint8_t *buf, size_t size);
 
-void serve_http(uint16_t port_no)
-{
-	int server_sock = startup(port_no);
-
-	puts("Listening");
-
-	struct sockaddr_in client_name;
-	unsigned int client_name_len = sizeof(client_name);
-	while (true) {
-		puts("Waiting for request");
-
-		int client_sock = accept(
-			server_sock,
-			(struct sockaddr *) &client_name,
-			&client_name_len
-		);
-
-		puts("Handling request");
-
-		process_request(client_sock);
-	}
-
-	close(server_sock);
-}
-
-int startup(uint16_t port)
+int socket_init(uint16_t port)
 {
 	int descr = 0;
 	struct sockaddr_in name;
@@ -74,7 +48,7 @@ int startup(uint16_t port)
 	return descr;
 }
 
-void process_request(int client)
+struct request req_parse(int client)
 {
 	uint8_t buf[1024];
 
@@ -102,8 +76,16 @@ void process_request(int client)
 	}
 	url[i] = '\0';
 
-	printf("%s: %s\n", method, url);
+	struct request req = {
+		.method = "GET",
+		.path = "/things"
+	};
 
+	return req;
+}
+
+void res_send(int client, struct response *res)
+{
 	const char *res_tmpl =
 		"HTTP/1.1 200 OK\r\n"
 		"Date: %s\r\n"
@@ -119,13 +101,13 @@ void process_request(int client)
 	char date[POKOY_DATE_LEN];
 	rfc2822date(date);
 
-	const char *body = "{ \"yes\": 1 }";
+	const char *body = res->body;
 	uint16_t body_len = strlen(body);
 
-	char *res = calloc(1000, sizeof(char));
-	sprintf(res, res_tmpl, date, body_len, date, body);
+	char *final_res = calloc(1000, sizeof(char));
+	sprintf(final_res, res_tmpl, date, body_len, date, body);
 
-	send(client, res, strlen(res), 0);
+	send(client, final_res, strlen(final_res), 0);
 
 	close(client);
 }
