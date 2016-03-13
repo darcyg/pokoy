@@ -13,7 +13,7 @@
 #include "http.h"
 #include "date.h"
 
-int get_line(int sock, uint8_t *buf, size_t size);
+int req_read(int sock, char *buf, size_t size);
 
 int socket_init(uint16_t port)
 {
@@ -50,36 +50,25 @@ int socket_init(uint16_t port)
 
 struct request req_parse(int client)
 {
-	uint8_t buf[1024];
+	char buf[1024];
 
-	get_line(client, buf, sizeof(buf));
+	req_read(client, buf, sizeof(buf));
 
-	uint8_t method[255];
-	uint16_t i = 0, j = 0;
-	while (!isspace(buf[j]) && i < sizeof(method) - 1) {
-		method[i] = buf[j];
-		++i;
-		++j;
-	}
-	method[i] = '\0';
-
-	uint8_t url[255];
-	while (j < sizeof(buf) && isspace(buf[j])) {
-		++j;
+	char *method = strtok(buf, " ");
+	if (method == NULL) {
+		perror("Could not read method");
+		exit(EXIT_FAILURE);
 	}
 
-	i = 0;
-	while (i < sizeof(url) - 1 && j < sizeof(buf) && !isspace(buf[j])) {
-		url[i] = buf[j];
-		i++;
-		j++;
+	char *path = strtok(NULL, " ");
+	if (path == NULL) {
+		perror("Could not read path");
+		exit(EXIT_FAILURE);
 	}
-	url[i] = '\0';
 
-	struct request req = {
-		.method = "GET",
-		.path = "/things"
-	};
+	struct request req;
+	strncpy(req.method, method, sizeof(req.method) - 1);
+	strncpy(req.path, path, sizeof(req.path) - 1);
 
 	return req;
 }
@@ -112,7 +101,7 @@ void res_send(int client, struct response *res)
 	close(client);
 }
 
-int get_line(int sock, uint8_t *buf, size_t size)
+int req_read(int sock, char *buf, size_t size)
 {
 	uint8_t c = '\0';
 	uint16_t i = 0;

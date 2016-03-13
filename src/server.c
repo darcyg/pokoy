@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdbool.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -18,34 +19,35 @@ void server_run(struct server *srv)
 	unsigned int name_len = sizeof(name);
 
 	while (true) {
-		sock = accept(
+		int conn_fd = accept(
 			sock,
 			(struct sockaddr *) &name,
 			&name_len
 		);
 
-		struct request req = req_parse(sock);
+		struct request req = req_parse(conn_fd);
 		struct response res = req_handle(srv->router, &req);
-		res_send(sock, &res);
-	}
+		res_send(conn_fd, &res);
 
-	close(sock);
+		close(conn_fd);
+	}
 }
 
 struct response req_handle(struct router *rtr, struct request *req)
 {
-	for (int i = 0; i < ROUTES_MAX; ++i) {
+	for (int i = 0; i < rtr->matchers_n; ++i) {
 		bool ok = route_match(rtr->matchers[i], req->path);
 
 		if (ok) {
-			//rtr->routes[i]();
+			struct response res = rtr->routes[i]();
+			return res;
 		}
 	}
 
 	struct response res = {
-		.code = 200,
-		.status = "OK",
-		.body = "{ \"ohh\": \"yes\" }"
+		.code = 404,
+		.status = "Not Found",
+		.body = "{}"
 	};
 
 	return res;

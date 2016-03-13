@@ -3,12 +3,12 @@
 #include <inttypes.h>
 
 struct request {
-	const char *method;
-	const char *path;
+	char method[7 + 1];
+	char path[2083 + 1];
 };
 
 struct response {
-	uint8_t code;
+	uint16_t code;
 	const char *status;
 	const char *body;
 };
