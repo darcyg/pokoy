@@ -6,7 +6,7 @@
 #include "http.h"
 
 struct server {
-	uint16_t port_no;
+	const char *port;
 	struct router *router;
 };
 

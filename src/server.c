@@ -13,7 +13,7 @@ struct response req_handle(struct router *rtr, struct request *req);
 
 void server_run(struct server *srv)
 {
-	int sock = socket_init(srv->port_no);
+	int sock = socket_init(srv->port);
 
 	struct sockaddr_in name;
 	unsigned int name_len = sizeof(name);

@@ -1,51 +1,47 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <stdint.h>
 #include <unistd.h>
-#include <inttypes.h>
-#include <ctype.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include "http.h"
 #include "date.h"
 
 int req_read(int sock, char *buf, size_t size);
 
-int socket_init(uint16_t port)
+int socket_init(const char *port)
 {
-	int descr = 0;
-	struct sockaddr_in name;
+	int sock_fd;
+	struct addrinfo hints, *res;
 
-	descr = socket(PF_INET, SOCK_STREAM, 0);
-	setsockopt(descr, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
-	if (descr == -1) {
+	memset(&hints, 0, sizeof hints);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM,
+	hints.ai_flags = AI_PASSIVE;
+
+	getaddrinfo(NULL, port, &hints, &res);
+	sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (sock_fd == -1) {
 		perror("Bad socket");
 		exit(EXIT_FAILURE);
 	}
 
-	memset(&name, 0, sizeof(name));
-	name.sin_family = AF_INET;
-	name.sin_port = htons(port);
-	name.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	int bind_result = bind(descr, (struct sockaddr *)&name, (socklen_t) sizeof(name));
+	int bind_result = bind(sock_fd, res->ai_addr, res->ai_addrlen);
 	if (bind_result < 0) {
 		perror("Could not bind");
 		exit(EXIT_FAILURE);
 	}
 
-	int8_t listen_result = listen(descr, 5);
-
+	int8_t listen_result = listen(sock_fd, 5);
 	if (listen_result < 0) {
 		perror("Could not listen");
 		exit(EXIT_FAILURE);
 	}
 
-	return descr;
+	return sock_fd;
 }
 
 struct request req_parse(int client)

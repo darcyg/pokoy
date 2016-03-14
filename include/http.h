@@ -13,6 +13,6 @@ struct response {
 	const char *body;
 };
 
-int socket_init(uint16_t port);
+int socket_init(const char *port);
 struct request req_parse(int client);
 void res_send(int client, struct response *res);
