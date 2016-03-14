@@ -25,7 +25,8 @@ void server_run(struct server *srv)
 			&name_len
 		);
 
-		struct request req = req_parse(conn_fd);
+		struct request req;
+		req_parse(conn_fd, &req);
 		struct response res = req_handle(srv->router, &req);
 		res_send(conn_fd, &res);
 
@@ -39,7 +40,7 @@ struct response req_handle(struct router *rtr, struct request *req)
 		bool ok = route_match(rtr->matchers[i], req->path);
 
 		if (ok) {
-			struct response res = rtr->routes[i]();
+			struct response res = rtr->routes[i](req);
 			return res;
 		}
 	}
