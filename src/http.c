@@ -44,7 +44,7 @@ int socket_init(const char *port)
 	return sock_fd;
 }
 
-struct request req_parse(int client)
+void req_parse(int client, struct request *req)
 {
 	char buf[1024];
 
@@ -56,17 +56,65 @@ struct request req_parse(int client)
 		exit(EXIT_FAILURE);
 	}
 
-	char *path = strtok(NULL, " ");
-	if (path == NULL) {
+	char *url = strtok(NULL, " ");
+	if (url == NULL) {
 		perror("Could not read path");
 		exit(EXIT_FAILURE);
 	}
 
-	struct request req;
-	strncpy(req.method, method, sizeof(req.method) - 1);
-	strncpy(req.path, path, sizeof(req.path) - 1);
+	struct query_pair q_pairs[32];
+	int q_pairs_n = 0;
+	char path[2083 + 1];
+	// Check if there is a query string
+	if (index(url, '?') == NULL) {
+		// Nope, there was not, so we'll assume the URL is the path
+		memcpy(path, &url[0], strlen(url));
+	} else {
+		// Yes, there was, so we'll have to split the query into pairs
 
-	return req;
+		size_t qs_start = strcspn(url, "?") + 1;
+		char qs[2083 + 1];
+
+		size_t qs_len = strlen(url) - qs_start;
+		memcpy(qs, &url[qs_start], qs_len);
+		qs[qs_len] = '\0';
+
+		memcpy(path, &url[0], qs_start);
+		path[qs_start] = '\0';
+
+		char *pairs[32];
+
+		// Split the query string into key-value pairs
+		if (index(qs, '&') == NULL) {
+			pairs[0] = qs;
+			q_pairs_n = 1;
+		} else {
+			char *pair = strtok(qs, "&");
+			do {
+				pairs[q_pairs_n] = pair;
+				++q_pairs_n;
+			} while ((pair = strtok(NULL, "&")) != NULL);
+		}
+
+		// Split the pairs and assign them to the request
+		for (int i = 0; i < q_pairs_n; ++i) {
+			size_t delim_pos = strcspn(pairs[i], "=");
+
+			size_t key_len = delim_pos;
+			size_t value_len = strlen(pairs[i]) - 1 - delim_pos;
+
+			struct query_pair qp;
+			memcpy(qp.key, &(pairs[i])[0], key_len);
+			memcpy(qp.value, &(pairs[i])[delim_pos] + 1, value_len);
+
+			q_pairs[i] = qp;
+		}
+	}
+
+	strncpy(req->method, method, sizeof(req->method) - 1);
+	strncpy(req->path, path, sizeof(req->path) - 1);
+	req->query_pairs = q_pairs;
+	req->query_pairs_n = q_pairs_n;
 }
 
 void res_send(int client, struct response *res)
