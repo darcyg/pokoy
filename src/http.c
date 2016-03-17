@@ -142,29 +142,23 @@ void res_send(int client, struct response *res)
 
 	send(client, final_res, strlen(final_res), 0);
 
+	free(final_res);
+
 	close(client);
 }
 
-int req_read(int sock, char *buf, size_t size)
+int req_read(int sock, char *buf, size_t buf_len)
 {
-	uint8_t c = '\0';
-	uint16_t i = 0;
-	while (i < size - 1 && c != '\n') {
+	char c = '\0';
+	size_t i = 0;
+	while (i < buf_len - 1) {
 		int n = recv(sock, &c, 1, 0);
-		if (n > 0) {
-			if (c == '\r') {
-				n = recv(sock, &c, 1, MSG_PEEK);
-				if (n > 0 && c == '\n') {
-					recv(sock, &c, 1, 0);
-				} else {
-					c = '\n';
-				}
-			}
-			buf[i] = c;
-			i++;
-		} else {
-			c = '\n';
+		if (n == 0) {
+			break;
 		}
+
+		buf[i] = c;
+		i++;
 	}
 
 	buf[i] = '\0';
