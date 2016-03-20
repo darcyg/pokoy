@@ -5,8 +5,15 @@
 struct request {
 	char method[7 + 1];
 	char path[2083 + 1];
+
 	struct query_pair *query_pairs;
 	size_t query_pairs_n;
+
+	char *headers[32];
+	size_t headers_n;
+
+	char body[1024];
+	size_t body_len;
 };
 
 struct response {

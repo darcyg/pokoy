@@ -10,7 +10,7 @@
 #include "http.h"
 #include "date.h"
 
-int req_read(int sock, char *buf, size_t size);
+void parse_req_line(struct request *req, char *req_line);
 
 int socket_init(const char *port)
 {
@@ -44,13 +44,9 @@ int socket_init(const char *port)
 	return sock_fd;
 }
 
-void req_parse(int client, struct request *req)
+void parse_req_line(struct request *req, char *req_line)
 {
-	char buf[1024];
-
-	req_read(client, buf, sizeof(buf));
-
-	char *method = strtok(buf, " ");
+	char *method = strtok(req_line, " ");
 	if (method == NULL) {
 		perror("Could not read method");
 		exit(EXIT_FAILURE);
@@ -147,21 +143,69 @@ void res_send(int client, struct response *res)
 	close(client);
 }
 
-int req_read(int sock, char *buf, size_t buf_len)
+/**
+ * Read a request and parse it into req
+ *
+ * Headers with GET requests are not supported!
+ */
+void req_parse(int sock, struct request *req)
 {
+	size_t buf_len = 1024;
+	char buf[buf_len];
+
+	req->headers_n = 0;
+
 	char c = '\0';
 	size_t i = 0;
+	size_t prev_nl = 0;
 	while (i < buf_len - 1) {
 		int n = recv(sock, &c, 1, 0);
 		if (n == 0) {
-			break;
+			return;
+		}
+
+		if (c == '\n') {
+			// Handle the first line
+			if (prev_nl == 0) {
+				if (strncmp(buf, "GET", 3) == 0) {
+					return;
+				}
+
+				parse_req_line(req, buf);
+			}
+			// Handle the change from head to body
+			else if (i == prev_nl + 2) {
+				break;
+			}
+			// Handle headers
+			else {
+				// -1 to trim the final \r
+				int h_len = i - prev_nl - 1;
+				char *header = calloc(h_len, sizeof(char));
+				memcpy(header, &buf[prev_nl + 1], h_len - 1);
+				header[h_len] = '\0';
+
+				req->headers[req->headers_n] = header;
+				req->headers_n++;
+			}
+
+			prev_nl = i;
 		}
 
 		buf[i] = c;
 		i++;
 	}
 
-	buf[i] = '\0';
+	for (size_t i = 0; i < req->headers_n; ++i) {
+		if (strncmp(req->headers[i], "Content-Length", 14) != 0) {
+			continue;
+		}
 
-	return i;
+		sscanf(req->headers[i], "Content-Length: %zu+", &req->body_len);
+	}
+
+	for (size_t i = 0; i < req->body_len; i++) {
+		recv(sock, &req->body[i], 1, 0);
+	}
+	req->body[req->body_len] = '\0';
 }
